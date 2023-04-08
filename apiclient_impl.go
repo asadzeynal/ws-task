@@ -89,12 +89,15 @@ func (c *Client) SubscribeToChannel(symbol string) error {
 }
 
 func (c *Client) ReadMessagesFromChannel(ch chan<- BestOrderBook) {
+	if c.conn == nil {
+		return
+	}
 	go func() {
 		for {
 			select {
 			case <-c.done:
 				return
-			case res := <-c.WaitForData():
+			case res := <-c.waitForData():
 				if len(res) == 0 {
 					continue
 				}
@@ -128,7 +131,7 @@ func (c *Client) ReadMessagesFromChannel(ch chan<- BestOrderBook) {
 	}()
 }
 
-func (c *Client) WaitForData() chan []byte {
+func (c *Client) waitForData() chan []byte {
 	ch := make(chan []byte)
 	go func() {
 		_, bytes, err := c.conn.ReadMessage()
@@ -144,7 +147,12 @@ func (c *Client) WaitForData() chan []byte {
 }
 
 func (c *Client) WriteMessagesToChannel() {
-	ticker := time.NewTicker(14 * time.Second)
+	if c.conn == nil {
+		return
+	}
+
+	// TODO: Add logic to change interval depending on hp field from server's pong message
+	ticker := time.NewTicker(15 * time.Second)
 	go func() {
 		c.ping()
 		for {
